@@ -31,6 +31,12 @@ class Settings(BaseAppSettings):
     # Path to the live tokens.yaml — used by the seed script only.
     seed_tokens_yaml: str = "/zfs/Apps/AppData/mcp-gateway/tokens.yaml"
 
+    # Gateway reload signaling. URL is the gateway's /admin/reload endpoint
+    # reachable on the podman-frontend network; the bearer is shared with the
+    # gateway (podman secret mcp_reload_token).
+    gateway_reload_url: str = "http://mcp-gateway:8080/admin/reload"
+    gateway_reload_token: str = ""
+
     model_config = {
         "env_file": str(Path(__file__).resolve().parent / ".env"),
         "env_file_encoding": "utf-8",
