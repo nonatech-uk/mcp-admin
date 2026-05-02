@@ -4,6 +4,8 @@ import Tokens from './pages/Tokens'
 import OAuthPolicies from './pages/OAuthPolicies'
 import UnlockProfiles from './pages/UnlockProfiles'
 import Audit from './pages/Audit'
+import Tools from './pages/Tools'
+import AccessLog from './pages/AccessLog'
 
 interface SidebarProps { className?: string; onNavigate?: () => void }
 
@@ -23,6 +25,8 @@ function Sidebar({ className = '', onNavigate }: SidebarProps) {
         <NavLink to="/tokens" onClick={onNavigate} className={linkClass}>Static tokens</NavLink>
         <NavLink to="/oauth" onClick={onNavigate} className={linkClass}>OAuth policies</NavLink>
         <NavLink to="/unlock" onClick={onNavigate} className={linkClass}>Unlock profiles</NavLink>
+        <NavLink to="/tools" onClick={onNavigate} className={linkClass}>Tools</NavLink>
+        <NavLink to="/access" onClick={onNavigate} className={linkClass}>Access log</NavLink>
         <NavLink to="/audit" onClick={onNavigate} className={linkClass}>Audit log</NavLink>
       </nav>
       <div className="px-4 py-3 border-t border-border text-xs text-text-secondary">
@@ -41,6 +45,8 @@ export default function App() {
           <Route path="/tokens" element={<Tokens />} />
           <Route path="/oauth" element={<OAuthPolicies />} />
           <Route path="/unlock" element={<UnlockProfiles />} />
+          <Route path="/tools" element={<Tools />} />
+          <Route path="/access" element={<AccessLog />} />
           <Route path="/audit" element={<Audit />} />
           <Route path="*" element={<div className="text-text-secondary">Not found</div>} />
         </Routes>

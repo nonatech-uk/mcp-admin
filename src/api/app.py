@@ -19,7 +19,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from config.settings import settings
 from src.api.auth_oidc import router as auth_router
 from src.api.deps import close_pool, init_pool
-from src.api.routers import audit, oauth_policies, tokens, unlock_profiles
+from src.api.routers import access_log, audit, gateway_proxy, oauth_policies, tokens, unlock_profiles
 
 STATIC_DIR = Path(_project_root) / "static"
 
@@ -63,6 +63,8 @@ app.include_router(tokens.router, prefix="/api/v1", tags=["tokens"])
 app.include_router(oauth_policies.router, prefix="/api/v1", tags=["oauth_policies"])
 app.include_router(unlock_profiles.router, prefix="/api/v1", tags=["unlock_profiles"])
 app.include_router(audit.router, prefix="/api/v1", tags=["audit"])
+app.include_router(gateway_proxy.router, prefix="/api/v1", tags=["gateway"])
+app.include_router(access_log.router, prefix="/api/v1", tags=["access_log"])
 
 
 @app.exception_handler(psycopg2.IntegrityError)
