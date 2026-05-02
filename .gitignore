@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Bundled into the build context by build.sh, never committed
+mees-shared-py/
+mees-shared-ui/
+
+# Frontend build artifacts
+ui/dist/
+ui/node_modules/
+
+# Python build
+build/
+dist/
+*.egg-info/

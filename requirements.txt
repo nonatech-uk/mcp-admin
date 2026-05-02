@@ -1,0 +1,11 @@
+mees-shared @ file:///tmp/mees-shared-py
+fastapi
+uvicorn[standard]
+psycopg2-binary
+pydantic-settings
+python-multipart
+authlib
+itsdangerous
+httpx
+pyyaml
+argon2-cffi
