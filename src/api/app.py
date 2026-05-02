@@ -9,9 +9,10 @@ _project_root = str(Path(__file__).resolve().parent.parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+import psycopg2
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -62,6 +63,18 @@ app.include_router(tokens.router, prefix="/api/v1", tags=["tokens"])
 app.include_router(oauth_policies.router, prefix="/api/v1", tags=["oauth_policies"])
 app.include_router(unlock_profiles.router, prefix="/api/v1", tags=["unlock_profiles"])
 app.include_router(audit.router, prefix="/api/v1", tags=["audit"])
+
+
+@app.exception_handler(psycopg2.IntegrityError)
+async def _pg_integrity_handler(request: Request, exc: psycopg2.IntegrityError):
+    """Translate Postgres constraint violations into clean 409s.
+
+    Most often this fires on a duplicate active-name (e.g. trying to create a
+    second active static_token with the same name as an existing un-revoked
+    one). Without this handler, FastAPI surfaces the raw stack as 500.
+    """
+    msg = str(exc).strip().split("\n")[0]
+    return JSONResponse({"detail": f"Integrity constraint: {msg}"}, status_code=409)
 
 
 @app.get("/health")
