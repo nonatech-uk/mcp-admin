@@ -29,16 +29,17 @@ def _row_to_out(row) -> UnlockProfileOut:
         name=row[1],
         key_preview=row[2],
         tools_glob=list(row[3] or []),
-        created_at=row[4],
-        created_by=row[5],
-        revoked_at=row[6],
+        host_allowlist=list(row[4] or []),
+        created_at=row[5],
+        created_by=row[6],
+        revoked_at=row[7],
     )
 
 
 def _select(cur, where: str = "", *params) -> list:
     cur.execute(
         f"""
-        SELECT id, name, key_preview, tools_glob,
+        SELECT id, name, key_preview, tools_glob, host_allowlist,
                created_at, created_by, revoked_at
           FROM unlock_profiles
           {where}
@@ -80,15 +81,17 @@ async def create_unlock_profile(
     try:
         cur.execute(
             """
-            INSERT INTO unlock_profiles (name, key_hash, key_preview, tools_glob, created_by)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, name, key_preview, tools_glob, created_at, created_by, revoked_at
+            INSERT INTO unlock_profiles (name, key_hash, key_preview, tools_glob, host_allowlist, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, name, key_preview, tools_glob, host_allowlist,
+                      created_at, created_by, revoked_at
             """,
             (
                 body.name,
                 hash_secret(cleartext),
                 preview(cleartext),
                 body.tools_glob,
+                body.host_allowlist,
                 user.email or user.username,
             ),
         )
@@ -124,10 +127,10 @@ async def update_unlock_profile(
     before_row = _get_by_id(cur, id_)
     if not before_row:
         raise HTTPException(404, "Profile not found")
-    if before_row[6] is not None:
+    if before_row[7] is not None:
         raise HTTPException(409, "Profile is revoked")
 
-    if body.tools_glob is None and body.name is None:
+    if body.tools_glob is None and body.name is None and body.host_allowlist is None:
         return _row_to_out(before_row)
 
     if body.name is not None and before_row[1] == "default" and body.name != "default":
@@ -141,6 +144,9 @@ async def update_unlock_profile(
     if body.tools_glob is not None:
         sets.append("tools_glob = %s")
         params.append(body.tools_glob)
+    if body.host_allowlist is not None:
+        sets.append("host_allowlist = %s")
+        params.append(body.host_allowlist)
     params.append(str(id_))
 
     try:
@@ -178,7 +184,7 @@ async def revoke_unlock_profile(
     before_row = _get_by_id(cur, id_)
     if not before_row:
         raise HTTPException(404, "Profile not found")
-    if before_row[6] is not None:
+    if before_row[7] is not None:
         raise HTTPException(409, "Already revoked")
     if before_row[1] == "default":
         # Only block if doing so would leave the gateway with no unlock mechanism.
@@ -229,7 +235,7 @@ async def rotate_unlock_profile(
     before_row = _get_by_id(cur, id_)
     if not before_row:
         raise HTTPException(404, "Profile not found")
-    if before_row[6] is not None:
+    if before_row[7] is not None:
         raise HTTPException(409, "Profile is revoked — create a new one instead")
 
     cleartext = new_unlock_key()

@@ -12,6 +12,7 @@ interface Policy {
   oauth_username: string[]
   tools_glob: string[]
   ip_allowlist: string[]
+  host_allowlist: string[]
   created_at: string
   created_by: string
   revoked_at: string | null
@@ -57,6 +58,7 @@ export default function OAuthPolicies() {
               <div className="flex gap-2"><dt className="text-text-secondary w-24">email</dt><dd className="font-mono text-xs">{p.oauth_email.join(', ') || '—'}</dd></div>
               <div className="flex gap-2"><dt className="text-text-secondary w-24">username</dt><dd className="font-mono text-xs">{p.oauth_username.join(', ') || '—'}</dd></div>
               <div className="flex gap-2"><dt className="text-text-secondary w-24">IP allow</dt><dd className="font-mono text-xs">{p.ip_allowlist.join(', ') || '—'}</dd></div>
+              <div className="flex gap-2"><dt className="text-text-secondary w-24">Host allow</dt><dd className="font-mono text-xs">{p.host_allowlist.join(', ') || '—'}</dd></div>
               <div className="flex gap-2 md:col-span-2"><dt className="text-text-secondary w-24">tools</dt><dd className="font-mono text-xs break-all">{p.tools_glob.join(', ')}</dd></div>
             </dl>
           </div>
@@ -88,6 +90,7 @@ function CreateOrEdit({ policy, onClose, onSaved }: { policy?: Policy; onClose: 
   const [usernames, setUsernames] = useState((policy?.oauth_username ?? []).join('\n'))
   const [tools, setTools] = useState((policy?.tools_glob ?? []).join('\n'))
   const [ips, setIps] = useState((policy?.ip_allowlist ?? []).join('\n'))
+  const [hosts, setHosts] = useState((policy?.host_allowlist ?? []).join('\n'))
   const [err, setErr] = useState<string | null>(null)
 
   const body = () => ({
@@ -97,6 +100,7 @@ function CreateOrEdit({ policy, onClose, onSaved }: { policy?: Policy; onClose: 
     oauth_username: fromLines(usernames),
     tools_glob: fromLines(tools),
     ip_allowlist: fromLines(ips),
+    host_allowlist: fromLines(hosts),
   })
 
   const m = useMutation({
@@ -135,6 +139,7 @@ function CreateOrEdit({ policy, onClose, onSaved }: { policy?: Policy; onClose: 
       </div>
       <ArrayField label="Tool patterns (required)" hint="One glob per line" value={tools} onChange={setTools} rows={4} />
       <ArrayField label="IP allowlist (CIDRs)" hint="One per line. Empty = allow any." value={ips} onChange={setIps} />
+      <ArrayField label="Host allowlist" hint="One hostname per line; '*' for any host. Empty = deny (host_tools_*, logs_*)." value={hosts} onChange={setHosts} />
       {err && <p className="text-red-400 text-sm mt-2">{err}</p>}
     </Modal>
   )

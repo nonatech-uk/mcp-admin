@@ -25,9 +25,10 @@ def _row_to_out(row) -> OAuthPolicyOut:
         oauth_username=list(row[4] or []),
         tools_glob=list(row[5] or []),
         ip_allowlist=[str(c) for c in (row[6] or [])],
-        created_at=row[7],
-        created_by=row[8],
-        revoked_at=row[9],
+        host_allowlist=list(row[7] or []),
+        created_at=row[8],
+        created_by=row[9],
+        revoked_at=row[10],
     )
 
 
@@ -35,7 +36,7 @@ def _select(cur, where: str = "", *params) -> list:
     cur.execute(
         f"""
         SELECT id, name, oauth_sub, oauth_email, oauth_username, tools_glob,
-               ip_allowlist, created_at, created_by, revoked_at
+               ip_allowlist, host_allowlist, created_at, created_by, revoked_at
           FROM oauth_policies
           {where}
          ORDER BY created_at DESC
@@ -76,10 +77,10 @@ async def create_oauth_policy(
         cur.execute(
             """
             INSERT INTO oauth_policies
-              (name, oauth_sub, oauth_email, oauth_username, tools_glob, ip_allowlist, created_by)
-            VALUES (%s, %s, %s, %s, %s, %s::inet[], %s)
+              (name, oauth_sub, oauth_email, oauth_username, tools_glob, ip_allowlist, host_allowlist, created_by)
+            VALUES (%s, %s, %s, %s, %s, %s::inet[], %s, %s)
             RETURNING id, name, oauth_sub, oauth_email, oauth_username, tools_glob,
-                      ip_allowlist, created_at, created_by, revoked_at
+                      ip_allowlist, host_allowlist, created_at, created_by, revoked_at
             """,
             (
                 body.name,
@@ -88,6 +89,7 @@ async def create_oauth_policy(
                 body.oauth_username,
                 body.tools_glob,
                 body.ip_allowlist,
+                body.host_allowlist,
                 user.email or user.username,
             ),
         )
@@ -123,7 +125,7 @@ async def update_oauth_policy(
     before_row = _get_by_id(cur, id_)
     if not before_row:
         raise HTTPException(404, "Policy not found")
-    if before_row[9] is not None:
+    if before_row[10] is not None:
         raise HTTPException(409, "Policy is revoked")
 
     sets: list[str] = []
@@ -133,6 +135,7 @@ async def update_oauth_policy(
         ("oauth_email", body.oauth_email),
         ("oauth_username", body.oauth_username),
         ("tools_glob", body.tools_glob),
+        ("host_allowlist", body.host_allowlist),
     ]:
         if val is not None:
             sets.append(f"{col} = %s")
@@ -179,7 +182,7 @@ async def revoke_oauth_policy(
     before_row = _get_by_id(cur, id_)
     if not before_row:
         raise HTTPException(404, "Policy not found")
-    if before_row[9] is not None:
+    if before_row[10] is not None:
         raise HTTPException(409, "Already revoked")
 
     try:

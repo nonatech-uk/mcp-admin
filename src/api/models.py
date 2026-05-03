@@ -9,6 +9,7 @@ retrievable again.
 from __future__ import annotations
 
 import ipaddress
+import re
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -43,6 +44,26 @@ def _validate_name(v: str) -> str:
     return v
 
 
+# Per-host scope for host-aware tools (host_tools_*, logs_*).
+# Empty list = deny; ['*'] = allow any host; otherwise the exact set
+# of permitted hostnames (RFC 1123-ish — letters, digits, dot, hyphen,
+# underscore; up to 64 chars).
+_HOSTNAME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
+
+
+def _validate_host_allowlist(v: list[str]) -> list[str]:
+    out: list[str] = []
+    for h in v:
+        h = (h or "").strip()
+        if not h:
+            continue
+        if h == "*" or _HOSTNAME_RE.match(h):
+            out.append(h)
+        else:
+            raise ValueError(f"{h!r} is not a valid host (use '*' or a hostname)")
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Static tokens
 # ---------------------------------------------------------------------------
@@ -54,6 +75,7 @@ class StaticTokenOut(BaseModel):
     token_preview: str
     tools_glob: list[str]
     ip_allowlist: list[str]
+    host_allowlist: list[str]
     created_at: datetime
     created_by: str
     last_used_at: datetime | None
@@ -69,15 +91,18 @@ class StaticTokenCreate(BaseModel):
     name: str
     tools_glob: list[str]
     ip_allowlist: list[str] = Field(default_factory=list)
+    host_allowlist: list[str] = Field(default_factory=list)
 
     _name = field_validator("name")(_validate_name)
     _globs = field_validator("tools_glob")(_validate_globs)
     _ips = field_validator("ip_allowlist")(_validate_cidrs)
+    _hosts = field_validator("host_allowlist")(_validate_host_allowlist)
 
 
 class StaticTokenUpdate(BaseModel):
     tools_glob: list[str] | None = None
     ip_allowlist: list[str] | None = None
+    host_allowlist: list[str] | None = None
 
     @field_validator("tools_glob")
     @classmethod
@@ -88,6 +113,11 @@ class StaticTokenUpdate(BaseModel):
     @classmethod
     def _v_ips(cls, v: list[str] | None) -> list[str] | None:
         return v if v is None else _validate_cidrs(v)
+
+    @field_validator("host_allowlist")
+    @classmethod
+    def _v_hosts(cls, v: list[str] | None) -> list[str] | None:
+        return v if v is None else _validate_host_allowlist(v)
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +133,7 @@ class OAuthPolicyOut(BaseModel):
     oauth_username: list[str]
     tools_glob: list[str]
     ip_allowlist: list[str]
+    host_allowlist: list[str]
     created_at: datetime
     created_by: str
     revoked_at: datetime | None
@@ -115,10 +146,12 @@ class OAuthPolicyCreate(BaseModel):
     oauth_username: list[str] = Field(default_factory=list)
     tools_glob: list[str]
     ip_allowlist: list[str] = Field(default_factory=list)
+    host_allowlist: list[str] = Field(default_factory=list)
 
     _name = field_validator("name")(_validate_name)
     _globs = field_validator("tools_glob")(_validate_globs)
     _ips = field_validator("ip_allowlist")(_validate_cidrs)
+    _hosts = field_validator("host_allowlist")(_validate_host_allowlist)
 
     @field_validator("oauth_sub", "oauth_email", "oauth_username")
     @classmethod
@@ -137,6 +170,7 @@ class OAuthPolicyUpdate(BaseModel):
     oauth_username: list[str] | None = None
     tools_glob: list[str] | None = None
     ip_allowlist: list[str] | None = None
+    host_allowlist: list[str] | None = None
 
     @field_validator("tools_glob")
     @classmethod
@@ -147,6 +181,11 @@ class OAuthPolicyUpdate(BaseModel):
     @classmethod
     def _v_ips(cls, v: list[str] | None) -> list[str] | None:
         return v if v is None else _validate_cidrs(v)
+
+    @field_validator("host_allowlist")
+    @classmethod
+    def _v_hosts(cls, v: list[str] | None) -> list[str] | None:
+        return v if v is None else _validate_host_allowlist(v)
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +198,7 @@ class UnlockProfileOut(BaseModel):
     name: str
     key_preview: str
     tools_glob: list[str]
+    host_allowlist: list[str]
     created_at: datetime
     created_by: str
     revoked_at: datetime | None
@@ -171,14 +211,17 @@ class UnlockProfileWithCleartext(UnlockProfileOut):
 class UnlockProfileCreate(BaseModel):
     name: str
     tools_glob: list[str]
+    host_allowlist: list[str] = Field(default_factory=list)
 
     _name = field_validator("name")(_validate_name)
     _globs = field_validator("tools_glob")(_validate_globs)
+    _hosts = field_validator("host_allowlist")(_validate_host_allowlist)
 
 
 class UnlockProfileUpdate(BaseModel):
     name: str | None = None
     tools_glob: list[str] | None = None
+    host_allowlist: list[str] | None = None
 
     @field_validator("name")
     @classmethod
@@ -189,6 +232,11 @@ class UnlockProfileUpdate(BaseModel):
     @classmethod
     def _v_globs(cls, v: list[str] | None) -> list[str] | None:
         return v if v is None else _validate_globs(v)
+
+    @field_validator("host_allowlist")
+    @classmethod
+    def _v_hosts(cls, v: list[str] | None) -> list[str] | None:
+        return v if v is None else _validate_host_allowlist(v)
 
 
 # ---------------------------------------------------------------------------

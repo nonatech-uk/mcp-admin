@@ -10,6 +10,7 @@ interface Profile {
   name: string
   key_preview: string
   tools_glob: string[]
+  host_allowlist: string[]
   created_at: string
   created_by: string
   revoked_at: string | null
@@ -50,6 +51,7 @@ export default function UnlockProfiles() {
               <th className="text-left px-3 py-2">Name</th>
               <th className="text-left px-3 py-2">Preview</th>
               <th className="text-left px-3 py-2">Tools</th>
+              <th className="text-left px-3 py-2">Host allowlist</th>
               <th className="text-left px-3 py-2">Created</th>
               <th className="text-right px-3 py-2"></th>
             </tr>
@@ -60,6 +62,7 @@ export default function UnlockProfiles() {
                 <td className="px-3 py-2 font-medium">{p.name}</td>
                 <td className="px-3 py-2 font-mono text-xs">{p.key_preview}…</td>
                 <td className="px-3 py-2 font-mono text-xs">{p.tools_glob.join(', ')}</td>
+                <td className="px-3 py-2 font-mono text-xs">{p.host_allowlist.join(', ') || '—'}</td>
                 <td className="px-3 py-2 text-text-secondary">{p.created_at}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <button onClick={() => setEditing(p)} className="text-text-secondary hover:text-text-primary mr-3">Edit</button>
@@ -69,7 +72,7 @@ export default function UnlockProfiles() {
               </tr>
             ))}
             {(data ?? []).length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-4 text-text-secondary">No profiles.</td></tr>
+              <tr><td colSpan={6} className="px-3 py-4 text-text-secondary">No profiles.</td></tr>
             )}
           </tbody>
         </table>
@@ -125,9 +128,14 @@ function RevokeProfile({ profile, onClose, onRevoked }: { profile: Profile; onCl
 function CreateProfile({ onClose, onCreated }: { onClose: () => void; onCreated: (p: ProfileWithKey) => void }) {
   const [name, setName] = useState('')
   const [tools, setTools] = useState('')
+  const [hosts, setHosts] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const m = useMutation({
-    mutationFn: () => apiPost<ProfileWithKey>('/unlock_profiles', { name, tools_glob: fromLines(tools) }),
+    mutationFn: () => apiPost<ProfileWithKey>('/unlock_profiles', {
+      name,
+      tools_glob: fromLines(tools),
+      host_allowlist: fromLines(hosts),
+    }),
     onSuccess: (p) => { onCreated(p); onClose() },
     onError: (e: Error) => setErr(e.message),
   })
@@ -152,6 +160,11 @@ function CreateProfile({ onClose, onCreated }: { onClose: () => void; onCreated:
         <p className="text-xs text-text-secondary mb-1">One glob per line. The session sees the intersection of these and the matched policy's tools.</p>
         <textarea value={tools} onChange={(e) => setTools(e.target.value)} rows={4} className={inputCls} />
       </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">Host allowlist</label>
+        <p className="text-xs text-text-secondary mb-1">One hostname per line; '*' for any host. Empty = deny. Intersected with the policy's host_allowlist.</p>
+        <textarea value={hosts} onChange={(e) => setHosts(e.target.value)} rows={3} className={inputCls} />
+      </div>
       {err && <p className="text-red-400 text-sm mt-2">{err}</p>}
     </Modal>
   )
@@ -160,11 +173,15 @@ function CreateProfile({ onClose, onCreated }: { onClose: () => void; onCreated:
 function EditProfile({ profile, onClose, onSaved }: { profile: Profile; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(profile.name)
   const [tools, setTools] = useState(profile.tools_glob.join('\n'))
+  const [hosts, setHosts] = useState(profile.host_allowlist.join('\n'))
   const [err, setErr] = useState<string | null>(null)
   const isDefault = profile.name === 'default'
   const m = useMutation({
     mutationFn: () => {
-      const body: { name?: string; tools_glob: string[] } = { tools_glob: fromLines(tools) }
+      const body: { name?: string; tools_glob: string[]; host_allowlist: string[] } = {
+        tools_glob: fromLines(tools),
+        host_allowlist: fromLines(hosts),
+      }
       if (!isDefault && name !== profile.name) body.name = name
       return apiPatch<Profile>(`/unlock_profiles/${profile.id}`, body)
     },
@@ -190,6 +207,11 @@ function EditProfile({ profile, onClose, onSaved }: { profile: Profile; onClose:
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Tool patterns</label>
         <textarea value={tools} onChange={(e) => setTools(e.target.value)} rows={4} className={inputCls} />
+      </div>
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">Host allowlist</label>
+        <p className="text-xs text-text-secondary mb-1">One hostname per line; '*' for any host. Empty = deny.</p>
+        <textarea value={hosts} onChange={(e) => setHosts(e.target.value)} rows={3} className={inputCls} />
       </div>
       {err && <p className="text-red-400 text-sm mt-2">{err}</p>}
     </Modal>

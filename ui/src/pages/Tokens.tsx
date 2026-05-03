@@ -11,6 +11,7 @@ interface Token {
   token_preview: string
   tools_glob: string[]
   ip_allowlist: string[]
+  host_allowlist: string[]
   created_at: string
   created_by: string
   last_used_at: string | null
@@ -62,6 +63,7 @@ export default function Tokens() {
               <th className="text-left px-3 py-2">Preview</th>
               <th className="text-left px-3 py-2">Tools</th>
               <th className="text-left px-3 py-2">IP allowlist</th>
+              <th className="text-left px-3 py-2">Host allowlist</th>
               <th className="text-left px-3 py-2">Last used</th>
               <th className="text-right px-3 py-2"></th>
             </tr>
@@ -73,6 +75,7 @@ export default function Tokens() {
                 <td className="px-3 py-2 font-mono text-xs">{t.token_preview}…</td>
                 <td className="px-3 py-2 font-mono text-xs">{t.tools_glob.join(', ')}</td>
                 <td className="px-3 py-2 font-mono text-xs">{t.ip_allowlist.join(', ') || '—'}</td>
+                <td className="px-3 py-2 font-mono text-xs">{t.host_allowlist.join(', ') || '—'}</td>
                 <td className="px-3 py-2 text-text-secondary">{t.last_used_at ?? 'never'}</td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
                   <button onClick={() => setEditing(t)} className="text-text-secondary hover:text-text-primary mr-3">Edit</button>
@@ -82,7 +85,7 @@ export default function Tokens() {
               </tr>
             ))}
             {(data ?? []).length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-4 text-text-secondary">No tokens. Create one above.</td></tr>
+              <tr><td colSpan={7} className="px-3 py-4 text-text-secondary">No tokens. Create one above.</td></tr>
             )}
           </tbody>
         </table>
@@ -116,12 +119,14 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [name, setName] = useState('')
   const [tools, setTools] = useState('')
   const [ips, setIps] = useState('')
+  const [hosts, setHosts] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const m = useMutation({
     mutationFn: () => apiPost<TokenWithCleartext>('/tokens', {
       name,
       tools_glob: fromLines(tools),
       ip_allowlist: fromLines(ips),
+      host_allowlist: fromLines(hosts),
     }),
     onSuccess: (t) => { onCreated(t); onClose() },
     onError: (e: Error) => setErr(e.message),
@@ -150,6 +155,9 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
       <Field label="IP allowlist (CIDRs)" hint="One per line. Empty = allow from any IP.">
         <textarea value={ips} onChange={(e) => setIps(e.target.value)} rows={3} className={inputCls} />
       </Field>
+      <Field label="Host allowlist" hint="One hostname per line; '*' for any host. Empty = deny all hosts (host_tools_*, logs_*).">
+        <textarea value={hosts} onChange={(e) => setHosts(e.target.value)} rows={3} className={inputCls} />
+      </Field>
       {err && <p className="text-red-400 text-sm mt-2">{err}</p>}
     </Modal>
   )
@@ -158,11 +166,13 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 function EditModal({ token, onClose, onSaved }: { token: Token; onClose: () => void; onSaved: () => void }) {
   const [tools, setTools] = useState(token.tools_glob.join('\n'))
   const [ips, setIps] = useState(token.ip_allowlist.join('\n'))
+  const [hosts, setHosts] = useState(token.host_allowlist.join('\n'))
   const [err, setErr] = useState<string | null>(null)
   const m = useMutation({
     mutationFn: () => apiPatch<Token>(`/tokens/${token.id}`, {
       tools_glob: fromLines(tools),
       ip_allowlist: fromLines(ips),
+      host_allowlist: fromLines(hosts),
     }),
     onSuccess: () => onSaved(),
     onError: (e: Error) => setErr(e.message),
@@ -187,6 +197,9 @@ function EditModal({ token, onClose, onSaved }: { token: Token; onClose: () => v
       </Field>
       <Field label="IP allowlist (CIDRs)" hint="One per line.">
         <textarea value={ips} onChange={(e) => setIps(e.target.value)} rows={3} className={inputCls} />
+      </Field>
+      <Field label="Host allowlist" hint="One hostname per line; '*' for any host. Empty = deny.">
+        <textarea value={hosts} onChange={(e) => setHosts(e.target.value)} rows={3} className={inputCls} />
       </Field>
       {err && <p className="text-red-400 text-sm mt-2">{err}</p>}
     </Modal>
